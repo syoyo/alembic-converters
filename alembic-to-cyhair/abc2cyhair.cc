@@ -51,6 +51,19 @@ SOFTWARE.
 #pragma clang diagnostic ignored "-Wdocumentation-unknown-command"
 #pragma clang diagnostic ignored "-Wdouble-promotion"
 #pragma clang diagnostic ignored "-Wcovered-switch-default"
+
+#if __has_warning("-Wzero-as-null-pointer-constant")
+#pragma clang diagnostic ignored "-Wzero-as-null-pointer-constant"
+#endif
+
+#if __has_warning("-Wcast-qual")
+#pragma clang diagnostic ignored "-Wcast-qual"
+#endif
+
+#if __has_warning("-Wunused-template")
+#pragma clang diagnostic ignored "-Wunused-template"
+#endif
+
 #endif
 
 #include <Alembic/AbcCoreFactory/All.h>
@@ -360,12 +373,12 @@ Points::~Points() {}
 
 class Scene {
  public:
-  Scene() : root_node(NULL) {}
+  Scene() : root_node(nullptr) {}
   ~Scene() { Destroy(); }
 
   void Destroy() {
     delete root_node;
-    root_node = NULL;
+    root_node = nullptr;
 
     {
       std::map<std::string, const Xform *>::const_iterator it(
@@ -667,7 +680,7 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
         obj.getChild(i).getProperties();
     VisitProperties(ss, props, indent);
 
-    Node *node = NULL;
+    Node *node = nullptr;
 
     if (Alembic::AbcGeom::IXform::matches(header)) {
       ss << "    IXform" << std::endl;
@@ -894,7 +907,7 @@ static void ConvertNodeToScene(Scene *scene, int *id, const Node *node) {
   
   if (dynamic_cast<const Xform *>(node)) {
     // Allow only one root node in the scene.
-    if (scene->root_node == NULL) {
+    if (scene->root_node == nullptr) {
       scene->root_node = node;
     } else {
       // Assume child xform node

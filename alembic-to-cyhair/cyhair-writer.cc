@@ -30,6 +30,7 @@ SOFTWARE.
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <limits>
 
 #include "cyhair-writer.h"
 
