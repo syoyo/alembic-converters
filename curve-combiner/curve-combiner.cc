@@ -935,10 +935,8 @@ static void ConvertNodeToScene(Scene *scene, int *id, const Node *node) {
 static bool WriteCurveToAbc(const std::string &filename, const std::vector<float> &points, const std::vector<uint32_t> &segments) {
   (void)segments;
 
-  Alembic::AbcGeom::OArchive archive = Alembic::Abc::CreateArchiveWithInfo(Alembic::AbcCoreOgawa::WriteArchive(), filename, "curve-combpiner", /* user desc */"");
+  Alembic::AbcGeom::OArchive archive = Alembic::Abc::CreateArchiveWithInfo(Alembic::AbcCoreOgawa::WriteArchive(), filename, "curve-combiner", /* user desc */"");
   Alembic::AbcGeom::OObject root = archive.getTop();
-
-  //Alembic::AbcGeom::OXform xform(Alembic::Abc::OObject( archive, "/", time_index));
 
   Alembic::Util::uint32_t time_index = 0;
   Alembic::AbcGeom::OCurves curves(root, "curve", time_index);
@@ -962,6 +960,8 @@ static bool WriteCurveToAbc(const std::string &filename, const std::vector<float
   //sample.setType(Alembic::AbcGeom::kLinear);
   //sample.setWrap(Alembic::AbcGeom::kNonPeriodic);
   //sample.setSelfBounds(bounds());
+
+  // TODO(syoyo): curve width
 
   // sample.setUVs(uv_sample); // TODO(syoyo)
   // sample.setNormals(normal_sample); // TODO(syoyo)
