@@ -14,7 +14,7 @@
 ## Convertes
 
 * alembic-to-cyhair : Alembic curves to CyHair converter.
-* curve-combiner    : Combine multiple Alembic curve nodes into one curve node.
+* curve-combiner    : Combine multiple Alembic curve nodes into one curve node. 
 
 ## LICENSE
 

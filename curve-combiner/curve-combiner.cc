@@ -896,7 +896,6 @@ static void CombileCurves(std::vector<float> *positions,
   for (size_t i = 0; i < curves.nverts.size(); i++) {
     uint32_t n = uint32_t(curves.nverts[i]);
     assert(n > 0);
-    assert(n < 65536); // CyHair segment data has 16bit data width, so limit by sizeof(ushort)
     segments->push_back(n);
   }
 }
@@ -932,10 +931,14 @@ static void ConvertNodeToScene(Scene *scene, int *id, const Node *node) {
   }
 }
 
-static bool WriteCurveToAbc(const std::string &filename, const std::vector<float> &points, const std::vector<uint32_t> &segments) {
+static bool WriteCurveToAbc(const std::string &filename,
+                            const std::vector<float> &points,
+                            const std::vector<uint32_t> &segments) {
   (void)segments;
 
-  Alembic::AbcGeom::OArchive archive = Alembic::Abc::CreateArchiveWithInfo(Alembic::AbcCoreOgawa::WriteArchive(), filename, "curve-combiner", /* user desc */"");
+  Alembic::AbcGeom::OArchive archive = Alembic::Abc::CreateArchiveWithInfo(
+      Alembic::AbcCoreOgawa::WriteArchive(), filename, "curve-combiner",
+      /* user desc */ "");
   Alembic::AbcGeom::OObject root = archive.getTop();
 
   Alembic::Util::uint32_t time_index = 0;
@@ -945,7 +948,8 @@ static bool WriteCurveToAbc(const std::string &filename, const std::vector<float
   std::vector<int> seg;
 
   for (size_t i = 0; i < points.size() / 3; i++) {
-    p.push_back(Imath::V3f(points[3*i+0], points[3*i+1], points[3*i+2]));
+    p.push_back(
+        Imath::V3f(points[3 * i + 0], points[3 * i + 1], points[3 * i + 2]));
   }
 
   for (size_t i = 0; i < segments.size(); i++) {
@@ -956,10 +960,10 @@ static bool WriteCurveToAbc(const std::string &filename, const std::vector<float
   Alembic::Abc::Int32ArraySample iSeg(seg);
 
   Alembic::AbcGeom::OCurvesSchema::Sample sample(iPos, iSeg);
-  //sample.setBasis(Alembic::AbcGeom::kNoBasis);
-  //sample.setType(Alembic::AbcGeom::kLinear);
-  //sample.setWrap(Alembic::AbcGeom::kNonPeriodic);
-  //sample.setSelfBounds(bounds());
+  // sample.setBasis(Alembic::AbcGeom::kNoBasis);
+  // sample.setType(Alembic::AbcGeom::kLinear);
+  // sample.setWrap(Alembic::AbcGeom::kNonPeriodic);
+  // sample.setSelfBounds(bounds());
 
   // TODO(syoyo): curve width
 
@@ -971,12 +975,10 @@ static bool WriteCurveToAbc(const std::string &filename, const std::vector<float
   schema.set(sample);
 
   return true;
-
 }
-  
 
 static bool SaveCurvesToAbc(const std::string &output_filename,
-                              const Scene &scene) {
+                            const Scene &scene) {
   std::vector<float> points;
   std::vector<uint32_t> segments;
 
@@ -998,7 +1000,6 @@ static bool SaveCurvesToAbc(const std::string &output_filename,
   bool ret = WriteCurveToAbc(output_filename, points, segments);
   return ret;
 }
-
 
 int main(int argc, char **argv) {
   if (argc < 3) {
