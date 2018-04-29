@@ -28,14 +28,13 @@ SOFTWARE.
 #include <cstdlib>
 #include <vector>
 
-namespace abcconv {
+namespace cyhair_writer {
 
 // Cyhair
 #define CYHAIR_INFO_HEADER_SIZE (88)
 
-struct CyhairHeader
-{
-  char signagure[4]; // "HAIR"
+struct CyhairHeader {
+  char signagure[4];  // "HAIR"
   uint32_t hair_count;
   uint32_t point_count;
   uint32_t flags;
@@ -46,16 +45,16 @@ struct CyhairHeader
   float d_transparency;
   float d_color[3];
 
-  char info[CYHAIR_INFO_HEADER_SIZE]; // infos. pad to 128bytes.
+  char info[CYHAIR_INFO_HEADER_SIZE];  // infos. pad to 128bytes.
 };
 
-//
-// Save curves as CyHair format.
-//
-bool SaveAsCyhair(const std::string &filename,
-    std::vector<float> points,
-    std::vector<uint32_t> num_points);
+///
+/// Save curves as CyHair format.
+/// TODO(syoyo): Write per-CV thickness, transparency and color.
+///
+bool SaveAsCyhair(const std::string &filename, std::vector<float> points,
+                  std::vector<uint32_t> num_points_per_segments);
 
-} // namespace abcconv
+}  // namespace cyhair_writer
 
-#endif // CYHAIR_WRITER_H_
+#endif  // CYHAIR_WRITER_H_

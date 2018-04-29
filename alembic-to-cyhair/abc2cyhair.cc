@@ -24,9 +24,9 @@ SOFTWARE.
 
 // TODO(syoyo): curve width, UV, weight
 
-#include <iostream>
 #include <cstdio>
 #include <cstdlib>
+#include <iostream>
 
 #include "cyhair-writer.h"
 
@@ -189,7 +189,7 @@ static void CalcNormal(float3 &N, float3 v0, float3 v1, float3 v2) {
   float3 v10 = v1 - v0;
   float3 v20 = v2 - v0;
 
-  N = vcross(v10, v20); // CCW
+  N = vcross(v10, v20);  // CCW
   N = vnormalize(N);
 }
 
@@ -734,14 +734,15 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
       Alembic::AbcGeom::IPolyMeshSchema::Sample psample;
       Alembic::AbcGeom::IPolyMeshSchema &ps = pmesh.getSchema();
 
-      //std::cout << "  # of samples = " << ps.getNumSamples() << std::endl;
+      // std::cout << "  # of samples = " << ps.getNumSamples() << std::endl;
 
       if (ps.getNumSamples() > 0) {
         Mesh *mesh = new Mesh();
         ps.get(psample, samplesel);
         Alembic::Abc::P3fArraySamplePtr P = psample.getPositions();
-        //std::cout << "  # of positions   = " << P->size() << std::endl;
-        //std::cout << "  # of face counts = " << psample.getFaceCounts()->size()
+        // std::cout << "  # of positions   = " << P->size() << std::endl;
+        // std::cout << "  # of face counts = " <<
+        // psample.getFaceCounts()->size()
         //          << std::endl;
 
         std::vector<unsigned int> faces;  // temp
@@ -760,8 +761,8 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
         std::vector<float> normals;
         std::vector<float> facevarying_normals;
         readPolyNormals(&normals, &facevarying_normals, normals_param);
-        //std::cout << "  # of normals   = " << (normals.size() / 3) << std::endl;
-        //std::cout << "  # of facevarying normals   = "
+        // std::cout << "  # of normals   = " << (normals.size() / 3) <<
+        // std::endl;  std::cout << "  # of facevarying normals   = "
         //          << (facevarying_normals.size() / 3) << std::endl;
 
         // TODO(syoyo): Do not generate normals when `facevarying_normals'
@@ -770,7 +771,7 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
             (!mesh->faces.empty())) {
           // Compute geometric normal.
           normals.resize(3 * P->size(), 0.0f);
-          //std::cout << "Compute normals" << std::endl;
+          // std::cout << "Compute normals" << std::endl;
           ComputeGeometricNormals(
               &normals, reinterpret_cast<const unsigned char *>(P->get()),
               /* stride */ sizeof(float) * 3, &mesh->faces.at(0),
@@ -784,8 +785,8 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
         std::vector<float> uvs;
         std::vector<float> facevarying_uvs;
         readPolyUVs(&uvs, &facevarying_uvs, uvs_param);
-        //std::cout << "  # of uvs   = " << (uvs.size() / 2) << std::endl;
-        //std::cout << "  # of facevarying_uvs   = "
+        // std::cout << "  # of uvs   = " << (uvs.size() / 2) << std::endl;
+        // std::cout << "  # of facevarying_uvs   = "
         //          << (facevarying_uvs.size() / 2) << std::endl;
         mesh->texcoords = uvs;
         mesh->facevarying_texcoords = facevarying_uvs;
@@ -806,13 +807,14 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
       Alembic::AbcGeom::ICurvesSchema::Sample psample;
       Alembic::AbcGeom::ICurvesSchema &ps = curve.getSchema();
 
-      //std::cout << "Curve:  # of samples = " << ps.getNumSamples() << std::endl;
+      // std::cout << "Curve:  # of samples = " << ps.getNumSamples() <<
+      // std::endl;
 
       if (ps.getNumSamples() > 0) {
         ps.get(psample, samplesel);
 
         const size_t num_curves = psample.getNumCurves();
-        //std::cout << "  # of curves = " << num_curves << std::endl;
+        // std::cout << "  # of curves = " << num_curves << std::endl;
 
         if (num_curves > 0) {
           Curves *curves = new Curves();
@@ -824,13 +826,14 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
           Alembic::Abc::Int32ArraySamplePtr num_vertices =
               psample.getCurvesNumVertices();
 
-          //if (knots) std::cout << "  # of knots= " << knots->size() << std::endl;
-          //if (orders)
+          // if (knots) std::cout << "  # of knots= " << knots->size() <<
+          // std::endl;  if (orders)
           //  std::cout << "  # of orders= " << orders->size() << std::endl;
-          //std::cout << "  # of nvs= " << num_vertices->size() << std::endl;
+          // std::cout << "  # of nvs= " << num_vertices->size() << std::endl;
 
           curves->points.resize(3 * P->size());
-          memcpy(curves->points.data(), P->get(), sizeof(float) * 3 * P->size());
+          memcpy(curves->points.data(), P->get(),
+                 sizeof(float) * 3 * P->size());
 
 #if 0
           for (size_t k = 0; k < P->size(); k++) {
@@ -886,25 +889,34 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
 }
 
 static void ConvertCurvesToCyHair(std::vector<float> *positions,
-                                  std::vector<uint16_t> *segments,
-                                  const Curves &curves) {
-  for (size_t i = 0; i < curves.points.size(); i++) {
-    positions->push_back(curves.points[i]);
+                                  std::vector<uint32_t> *segments,
+                                  const Curves &curves,
+                                  const bool flip_yz) {
+  for (size_t i = 0; i < curves.points.size() / 3; i++) {
+    if (flip_yz) {
+      positions->push_back(curves.points[3 * i + 0]);
+      positions->push_back(curves.points[3 * i + 2]);
+      positions->push_back(-curves.points[3 * i + 1]);
+    } else {
+      positions->push_back(curves.points[3 * i + 0]);
+      positions->push_back(curves.points[3 * i + 1]);
+      positions->push_back(curves.points[3 * i + 2]);
+    }
   }
 
   for (size_t i = 0; i < curves.nverts.size(); i++) {
     uint32_t n = uint32_t(curves.nverts[i]);
     assert(n > 0);
-    assert(n < 65536);
-    segments->push_back(uint16_t(n));
+    assert(n < 65536); // CyHair segment data has 16bit data width, so limit by sizeof(ushort)
+    segments->push_back(n);
   }
 }
 
 static void ConvertNodeToScene(Scene *scene, int *id, const Node *node) {
   if (!node) return;
-  
+
   std::cout << "node " << node->name << std::endl;
-  
+
   if (dynamic_cast<const Xform *>(node)) {
     // Allow only one root node in the scene.
     if (scene->root_node == nullptr) {
@@ -914,8 +926,8 @@ static void ConvertNodeToScene(Scene *scene, int *id, const Node *node) {
       assert(scene->xform_map.find(node->name) == scene->xform_map.end());
       scene->xform_map[node->name] = dynamic_cast<const Xform *>(node);
       // scene->id_map[node->name] = (*id)++;
-    } 
-    
+    }
+
   } else if (dynamic_cast<const Mesh *>(node)) {
     assert(scene->mesh_map.find(node->name) == scene->mesh_map.end());
     scene->mesh_map[node->name] = dynamic_cast<const Mesh *>(node);
@@ -924,20 +936,22 @@ static void ConvertNodeToScene(Scene *scene, int *id, const Node *node) {
     assert(scene->curves_map.find(node->name) == scene->curves_map.end());
     scene->curves_map[node->name] = dynamic_cast<const Curves *>(node);
     scene->id_map[node->name] = (*id)++;
-  } 
-  
+  }
+
   for (size_t i = 0; i < node->children.size(); i++) {
     ConvertNodeToScene(scene, id, node->children[i]);
-  } 
+  }
 }
 
 static bool SaveSceneToCyHair(const std::string &output_filename,
-                            const Scene &scene) {
+                              const Scene &scene,
+                              const bool flip_yz) {
   // TODO(syoyo): Support xform hierarchy.
 
   std::vector<float> points;
-  std::vector<uint16_t> segments;
+  std::vector<uint32_t> segments;
 
+  // Flatten curves data.
   // Curves
   std::map<std::string, const Curves *>::const_iterator curves_it(
       scene.curves_map.begin());
@@ -946,35 +960,38 @@ static bool SaveSceneToCyHair(const std::string &output_filename,
 
     assert(scene.id_map.find(curves_it->first) != scene.id_map.end());
 
-    ConvertCurvesToCyHair(&points, &segments, curves);
+    ConvertCurvesToCyHair(&points, &segments, curves, flip_yz);
   }
 
-  (void)output_filename; 
-
-  return true;
+  bool ret = cyhair_writer::SaveAsCyhair(output_filename, points, segments);
+  return ret;
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
   if (argc < 3) {
-    std::cout << "abc2cyhair input.abc output.hair (debug)" << std::endl;
+    std::cout << "abc2cyhair input.abc output.hair (flip_yz) (debug)" << std::endl;
     return EXIT_FAILURE;
   }
 
   std::string abc_filename(argv[1]);
   std::string cyhair_filename(argv[2]);
 
-  bool debug_output = false;
+  bool flip_yz = false;
   if (argc > 3) {
-    debug_output = bool(atoi(argv[3]));
+    flip_yz = bool(atoi(argv[3]));
   }
-    
+
+  bool debug_output = false;
+  if (argc > 4) {
+    debug_output = bool(atoi(argv[4]));
+  }
 
   Alembic::AbcCoreFactory::IFactory factory;
   Alembic::AbcGeom::IArchive archive = factory.getArchive(abc_filename);
 
   if (!archive.valid()) {
-    std::cerr << "File not found or invalid alembic file(e.g. HDF5 format)." << std::endl; 
+    std::cerr << "File not found or invalid alembic file(e.g. HDF5 format)."
+              << std::endl;
     return EXIT_FAILURE;
   }
 
@@ -992,16 +1009,17 @@ int main(int argc, char **argv)
   if (debug_output) {
     std::cout << ss.str() << std::endl;
   }
-  
+
   int id = 1;
   ConvertNodeToScene(&scene, &id, node);
   delete node;
 
-  bool ret = SaveSceneToCyHair(cyhair_filename, scene);
+  bool ret = SaveSceneToCyHair(cyhair_filename, scene, flip_yz);
   if (!ret) {
     std::cerr << "Failed to save scene as cyhair file." << std::endl;
     return EXIT_FAILURE;
   }
-
+  std::cout << "Saved file [" << cyhair_filename << std::endl;
+  
   return EXIT_SUCCESS;
 }
