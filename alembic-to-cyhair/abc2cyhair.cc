@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-// TODO(syoyo): curve width, UV, weight
+// TODO(syoyo): curve UV, weight
 
 #include <cstdio>
 #include <cstdlib>
@@ -69,6 +69,8 @@ SOFTWARE.
 #include <Alembic/AbcCoreFactory/All.h>
 #include <Alembic/AbcCoreOgawa/All.h>
 #include <Alembic/AbcGeom/All.h>
+
+#include "cxxopts.hpp"
 
 #ifdef __clang__
 #pragma clang diagnostic pop
@@ -333,6 +335,7 @@ class Curves : public Node {
       Node::operator=(rhs);
 
       points = rhs.points;
+      widths = rhs.widths;
       nverts = rhs.nverts;
     }
 
@@ -340,6 +343,7 @@ class Curves : public Node {
   }
 
   std::vector<float> points;
+  std::vector<float> widths;
   std::vector<int> nverts;  // # of vertices per strand(curve).
 };
 
@@ -656,10 +660,55 @@ static void readPolyUVs(std::vector<float> *uvs,
   }
 }
 
+static void readCurveWidths(std::vector<float> *widths,
+                            Alembic::AbcGeom::IFloatGeomParam param, const bool debug = false) {
+  widths->clear();
+
+  if (!param) {
+    return;
+  }
+
+  if ((param.getScope() != Alembic::AbcGeom::kConstantScope) &&
+      (param.getScope() != Alembic::AbcGeom::kVertexScope) &&
+      (param.getScope() != Alembic::AbcGeom::kVaryingScope) &&
+      (param.getScope() != Alembic::AbcGeom::kFacevaryingScope)) {
+    std::cout << "Widths parameter has an unsupported scope" << std::endl;
+    return;
+  }
+
+  if (param.getScope() == Alembic::AbcGeom::kConstantScope) {
+    std::cout << "Widths: ConstantScope" << std::endl;
+  } else if (param.getScope() == Alembic::AbcGeom::kVertexScope) {
+    std::cout << "Widths: VertexScope" << std::endl;
+  } else if (param.getScope() == Alembic::AbcGeom::kVaryingScope) {
+    std::cout << "Widths: VaryingScope" << std::endl;
+  } else if (param.getScope() == Alembic::AbcGeom::kFacevaryingScope) {
+    std::cout << "Widths: FacevaryingScope" << std::endl;
+  }
+
+  // @todo { lerp width among time sample.}
+  Alembic::AbcGeom::IFloatGeomParam::Sample samp;
+  Alembic::AbcGeom::ISampleSelector samplesel(
+      0.0, Alembic::AbcGeom::ISampleSelector::kNearIndex);
+  param.getExpanded(samp, samplesel);
+
+  Alembic::Abc::FloatArraySamplePtr W = samp.getVals();
+  size_t sample_size = W->size();
+
+  std::cout << "Widths size = " << sample_size << std::endl;
+
+  for (size_t i = 0; i < sample_size; i++) {
+    if (debug) {
+      std::cout << "width = " << (*W)[i] << std::endl;
+    }
+    widths->push_back((*W)[i]);
+  }
+}
+
 // Traverse Alembic object tree and extract data.
 static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
                                       const Alembic::AbcGeom::IObject &obj,
-                                      const std::string &indent) {
+                                      const std::string &indent, const bool debug) {
   std::string path = obj.getFullName();
   node_out->name = path;
 
@@ -856,6 +905,17 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
             std::cout << "nv[" << k << "] " << (*num_vertices)[k] << std::endl;
           }
 #endif
+          Alembic::AbcGeom::IFloatGeomParam widths_param = ps.getWidthsParam();
+          if (widths_param) {
+            std::vector<float> widths;
+            readCurveWidths(&widths, widths_param, debug);
+
+            if (widths.size() != P->size()) {
+              std::cerr << "# of width values and # of points should be same, but got widths = " << widths.size() << ", points = " << P->size() << std::endl;
+            } else {
+              curves->widths = widths;
+            }
+          }
 
           if (num_vertices) {
             curves->nverts.resize(num_vertices->size());
@@ -881,7 +941,7 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
       VisitObjectAndExtractNode(
           node, ss,
           Alembic::AbcGeom::IObject(obj, obj.getChildHeader(i).getName()),
-          indent);
+          indent, debug);
     }
 
     node_out->children.push_back(node);
@@ -890,6 +950,7 @@ static void VisitObjectAndExtractNode(Node *node_out, std::stringstream &ss,
 
 static void ConvertCurvesToCyHair(std::vector<float> *positions,
                                   std::vector<uint32_t> *segments,
+                                  std::vector<float> *thicknesses,
                                   const Curves &curves,
                                   const bool flip_yz) {
   for (size_t i = 0; i < curves.points.size() / 3; i++) {
@@ -901,6 +962,12 @@ static void ConvertCurvesToCyHair(std::vector<float> *positions,
       positions->push_back(curves.points[3 * i + 0]);
       positions->push_back(curves.points[3 * i + 1]);
       positions->push_back(curves.points[3 * i + 2]);
+    }
+  }
+
+  if (curves.widths.size() == (curves.points.size() / 3)) {
+    for (size_t i = 0; i < curves.widths.size(); i++) {
+      thicknesses->push_back(curves.widths[i]);
     }
   }
 
@@ -950,6 +1017,7 @@ static bool SaveSceneToCyHair(const std::string &output_filename,
 
   std::vector<float> points;
   std::vector<uint32_t> segments;
+  std::vector<float> thicknesses;
 
   // Flatten curves data.
   // Curves
@@ -960,31 +1028,61 @@ static bool SaveSceneToCyHair(const std::string &output_filename,
 
     assert(scene.id_map.find(curves_it->first) != scene.id_map.end());
 
-    ConvertCurvesToCyHair(&points, &segments, curves, flip_yz);
+    ConvertCurvesToCyHair(&points, &segments, &thicknesses, curves, flip_yz);
   }
 
-  bool ret = cyhair_writer::SaveAsCyhair(output_filename, points, segments);
+  bool ret = cyhair_writer::SaveAsCyhair(output_filename, points, segments, thicknesses);
   return ret;
 }
 
 int main(int argc, char **argv) {
-  if (argc < 3) {
-    std::cout << "abc2cyhair input.abc output.hair (flip_yz) (debug)" << std::endl;
+
+  cxxopts::Options options("abc2cyhair", "Alembic to CyHair converter");
+
+  bool flip_yz = false;
+  bool debug_output = false;
+
+  options.add_options()
+    ("d,debug", "Enable debugging", cxxopts::value<bool>(debug_output))
+    ("i,input", "Input file name", cxxopts::value<std::string>())
+    ("o,output", "Output file name", cxxopts::value<std::string>())
+    ("s,step_count", "The step count for curves. Useful for creating hair data with reduced number of curves. default = 1(no skip)", cxxopts::value<int>())
+    ("y,flip_yz", "Flip y and z coordinate", cxxopts::value<bool>(flip_yz))
+    ("h,help", "Show help")
+    ;
+
+  options.parse_positional({"input", "output"});
+
+  if (argc < 2) {
+    std::cout << options.help({"", "group"}) << std::endl;
     return EXIT_FAILURE;
   }
 
-  std::string abc_filename(argv[1]);
-  std::string cyhair_filename(argv[2]);
+  auto result = options.parse(argc, argv);
 
-  bool flip_yz = false;
-  if (argc > 3) {
-    flip_yz = bool(atoi(argv[3]));
+  if (result.count("help")) {
+    std::cout << options.help({"", "group"}) << std::endl;
+    return EXIT_FAILURE;
   }
 
-  bool debug_output = false;
-  if (argc > 4) {
-    debug_output = bool(atoi(argv[4]));
+  if (!result.count("input")) {
+    std::cerr << "Input file not specified." << std::endl;
+    std::cout << options.help({"", "group"}) << std::endl;
+    return EXIT_FAILURE;
   }
+
+  if (!result.count("output")) {
+    std::cerr << "Output file not specified." << std::endl;
+    std::cout << options.help({"", "group"}) << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  std::string abc_filename = result["input"].as<std::string>();
+  std::string cyhair_filename = result["output"].as<std::string>();
+
+  std::cout << "input = " << abc_filename << std::endl;
+  std::cout << "output = " << cyhair_filename << std::endl;
+  std::cout << "flip_yz = " << flip_yz << std::endl;
 
   Alembic::AbcCoreFactory::IFactory factory;
   Alembic::AbcGeom::IArchive archive = factory.getArchive(abc_filename);
@@ -1004,7 +1102,7 @@ int main(int argc, char **argv) {
   Scene scene;
   std::stringstream ss;
   Node *node = new Node();
-  VisitObjectAndExtractNode(node, ss, root, /* indent */ "  ");
+  VisitObjectAndExtractNode(node, ss, root, /* indent */ "  ", debug_output);
 
   if (debug_output) {
     std::cout << ss.str() << std::endl;
@@ -1019,7 +1117,7 @@ int main(int argc, char **argv) {
     std::cerr << "Failed to save scene as cyhair file." << std::endl;
     return EXIT_FAILURE;
   }
-  std::cout << "Saved file [" << cyhair_filename << std::endl;
+  std::cout << "Saved file [ " << cyhair_filename << " ] " << std::endl;
   
   return EXIT_SUCCESS;
 }

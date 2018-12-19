@@ -50,10 +50,11 @@ struct CyhairHeader {
 
 ///
 /// Save curves as CyHair format.
-/// TODO(syoyo): Write per-CV thickness, transparency and color.
+/// TODO(syoyo): Write per-CV transparency and color.
 ///
-bool SaveAsCyhair(const std::string &filename, std::vector<float> points,
-                  std::vector<uint32_t> num_points_per_segments);
+bool SaveAsCyhair(const std::string &filename, const std::vector<float> &points,
+                  const std::vector<uint32_t> &num_points_per_segments,
+                  const std::vector<float> &thicknesses);
 
 }  // namespace cyhair_writer
 

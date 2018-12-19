@@ -39,8 +39,9 @@ namespace cyhair_writer {
 //
 // Save curves as CyHair format.
 //
-bool SaveAsCyhair(const std::string &filename, std::vector<float> points,
-                  std::vector<uint32_t> num_points_per_segments) {
+bool SaveAsCyhair(const std::string &filename, const std::vector<float> &points,
+                  const std::vector<uint32_t> &num_points_per_segments,
+                  const std::vector<float> &thicknesses) {
   CyhairHeader header;
 
   if (sizeof(header) != 128) {
@@ -59,6 +60,10 @@ bool SaveAsCyhair(const std::string &filename, std::vector<float> points,
   // 0x8 = has_transparency
   // 0x10 = has_color
   header.flags = 0x1 | 0x2;
+
+  if (thicknesses.size() > 0) {
+    header.flags |= 0x4;
+  }
 
   header.d_segments = 0;         // no default segments.
   header.d_thickness = 1.0f;     // FIXME(syoyo)
@@ -98,6 +103,12 @@ bool SaveAsCyhair(const std::string &filename, std::vector<float> points,
   // write points.
   ofs.write(reinterpret_cast<const char *>(points.data()),
             std::streamsize(points.size() * sizeof(float)));
+
+  // write thickness.
+  if (thicknesses.size() > 0) {
+    ofs.write(reinterpret_cast<const char *>(thicknesses.data()),
+              std::streamsize(thicknesses.size() * sizeof(float)));
+  }
 
   ofs.close();
 
